@@ -1043,23 +1043,22 @@ video.mirrored {
    Desktop (> 768px) : hide button below camera, show below settings
    ===================================================== */
 
-/* Default: hide the desktop button on ALL screens,
-   then reveal it only on desktop */
+/* Desktop button hidden by default on ALL screen sizes */
 .action-wrapper--desktop {
-  display: none;
+  display: none !important;
 }
 
-/* Mobile button shown by default (inherits normal block display) */
+/* Mobile button always shown by default */
 .action-wrapper--mobile {
-  display: block;
+  display: block !important;
 }
 
-/* On desktop, flip visibility */
+/* On desktop/laptop, flip: hide mobile btn, show desktop btn */
 @media (min-width: 769px) {
   .action-wrapper--mobile {
-    display: none;
+    display: none !important;
   }
   .action-wrapper--desktop {
-    display: block;
+    display: block !important;
   }
 }
