@@ -57,9 +57,9 @@ git branch -M main
 5. Klik **Create repository**.
 
 ### Langkah 3: Sambungkan Git Lokal ke GitHub & Push
-GitHub akan menampilkan halaman petunjuk. Salin dan jalankan perintah berikut di terminal Anda (ganti `USERNAME` dengan nama pengguna GitHub Anda):
+Jalankan perintah berikut di terminal Anda:
 ```bash
-git remote add origin https://github.com/USERNAME/photobooth.git
+git remote add origin https://github.com/stx-sik/photobooth.git
 git push -u origin main
 ```
 
@@ -70,7 +70,7 @@ git push -u origin main
 4. Di bagian **Build and deployment** -> **Source**, pilih **Deploy from a branch**.
 5. Di bawah **Branch**, ganti *None* menjadi **main** (biar folder defaultnya `/ (root)`), lalu klik **Save** (Simpan).
 6. Tunggu sekitar 1–2 menit. Segarkan halaman tersebut.
-7. Di bagian atas halaman **Pages**, Anda akan melihat tautan web Anda yang sudah live, misalnya:  
-   `https://USERNAME.github.io/photobooth/`
+7. Di bagian atas halaman **Pages**, Anda akan melihat tautan web Anda yang sudah live, yaitu:  
+   `https://stx-sik.github.io/photobooth/`
 
 Sekarang, Anda bisa membagikan tautan tersebut agar teman-teman Anda dapat berfoto strip ria langsung dari HP mereka! 📸🎉
