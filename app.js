@@ -22,6 +22,9 @@ const soundOnIcon = document.getElementById('soundOnIcon');
 const soundOffIcon = document.getElementById('soundOffIcon');
 const soundBtnText = document.getElementById('soundBtnText');
 
+const toggleMirrorBtn = document.getElementById('toggleMirrorBtn');
+const mirrorBtnText = document.getElementById('mirrorBtnText');
+
 const frameChipsList = document.getElementById('frameChipsList');
 const filterChipsGrid = document.getElementById('filterChipsGrid');
 
@@ -38,6 +41,7 @@ const clearGalleryBtn = document.getElementById('clearGalleryBtn');
 let currentStream = null;
 let useFrontCamera = true;
 let isSoundEnabled = true;
+let isMirrored = true;
 let activeLayout = 'strip-3'; // 'strip-3', 'strip-4', 'grid-2x2'
 let maxShots = 3;
 let selectedFilter = 'none';
@@ -78,6 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Event Listeners
   switchCamBtn.addEventListener('click', toggleCameraFacing);
   toggleSoundBtn.addEventListener('click', toggleSoundState);
+  toggleMirrorBtn.addEventListener('click', toggleMirrorState);
   startSessionBtn.addEventListener('click', startSession);
   
   closeModalBtn.addEventListener('click', hideModal);
@@ -263,6 +268,13 @@ function toggleSoundState() {
   }
 }
 
+function toggleMirrorState() {
+  isMirrored = !isMirrored;
+  video.classList.toggle('mirrored', isMirrored);
+  liveCanvas.classList.toggle('mirrored', isMirrored);
+  mirrorBtnText.textContent = isMirrored ? 'Mirror: On' : 'Mirror: Off';
+}
+
 // --- OPTION CHIPS AND CONFIGURATION ---
 function initializeFilters() {
   filterChipsGrid.innerHTML = '';
@@ -412,22 +424,44 @@ function captureVideoFrame() {
   const videoW = video.videoWidth || 640;
   const videoH = video.videoHeight || 480;
   
-  captureCanvas.width = videoW;
-  captureCanvas.height = videoH;
+  // Calculate crop dimensions for 4:3 aspect ratio
+  const targetRatio = 4 / 3;
+  let sWidth = videoW;
+  let sHeight = videoH;
+  let sx = 0;
+  let sy = 0;
+  
+  if (videoW / videoH > targetRatio) {
+    // Source is wider (e.g. 16:9 landscape)
+    sWidth = videoH * targetRatio;
+    sx = (videoW - sWidth) / 2;
+  } else {
+    // Source is taller (e.g. 9:16 portrait on phone)
+    sHeight = videoW / targetRatio;
+    sy = (videoH - sHeight) / 2;
+  }
+  
+  // Standardize output frame size to 640x480 (4:3)
+  captureCanvas.width = 640;
+  captureCanvas.height = 480;
   
   const ctx = captureCanvas.getContext('2d');
+  ctx.clearRect(0, 0, captureCanvas.width, captureCanvas.height);
   
   ctx.save();
   
-  // 1. Mirroring horizontally (mirror the canvas drawing)
-  ctx.translate(videoW, 0);
-  ctx.scale(-1, 1);
+  // Apply mirroring if enabled
+  if (isMirrored) {
+    ctx.translate(captureCanvas.width, 0);
+    ctx.scale(-1, 1);
+  }
   
-  // 2. Draw Image
-  ctx.drawImage(video, 0, 0, videoW, videoH);
+  // Draw the cropped center portion of the video onto the full canvas
+  ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, captureCanvas.width, captureCanvas.height);
+  
   ctx.restore();
   
-  // 3. Return as base64 jpeg
+  // Return as base64 jpeg
   return captureCanvas.toDataURL('image/jpeg', 0.95);
 }
 

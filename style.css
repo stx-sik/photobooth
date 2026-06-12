@@ -162,8 +162,11 @@ video {
   height: 100%;
   object-fit: cover;
   display: block;
-  transform: scaleX(-1); /* Mirror view by default */
-  transition: filter var(--transition-fast);
+  transition: filter var(--transition-fast), transform var(--transition-fast);
+}
+
+video.mirrored {
+  transform: scaleX(-1);
 }
 
 #liveCanvas {
@@ -173,6 +176,10 @@ video {
   height: 100%;
   object-fit: cover;
   z-index: 2;
+  transition: transform var(--transition-fast);
+}
+
+#liveCanvas.mirrored {
   transform: scaleX(-1);
 }
 
