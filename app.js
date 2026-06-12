@@ -94,32 +94,61 @@ document.addEventListener('DOMContentLoaded', () => {
 async function startCamera() {
   setCameraStatus('busy', 'Menghubungkan...');
   
+  if (window.location.protocol === 'file:') {
+    setCameraStatus('error', 'Protokol file:// Terblokir');
+    alert('PERINGATAN BROWSER:\nBrowser memblokir akses kamera untuk file HTML lokal yang dibuka langsung (file://).\n\nSilakan:\n1. Jalankan server lokal (misalnya Python/Live-Server) seperti panduan di README.md, ATAU\n2. Unggah ke GitHub Pages (karena menggunakan https:// yang aman, kamera akan otomatis aktif).');
+    return;
+  }
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    setCameraStatus('error', 'WebRTC Tidak Didukung');
+    alert('Browser Anda tidak mendukung akses kamera. Harap gunakan browser modern (Chrome, Edge, Safari, Firefox).');
+    return;
+  }
+
   if (currentStream) {
     currentStream.getTracks().forEach(track => track.stop());
   }
 
+  // Safe constraints: 1280x720 is supported by almost all modern laptops/mobile front cameras
   const constraints = {
     video: {
       facingMode: useFrontCamera ? 'user' : 'environment',
       width: { ideal: 1280 },
-      height: { ideal: 960 },
-      aspectRatio: 4/3
+      height: { ideal: 720 }
     },
     audio: false
   };
 
   try {
-    currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-    video.srcObject = currentStream;
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (e) {
+      console.warn("Retrying with simple video constraints...", e);
+      // Graceful fallback to any video capture device
+      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    }
     
-    // Wait for video metadata to load to ensure size matches
+    currentStream = stream;
+    
+    // Bind metadata listener BEFORE setting srcObject to avoid race conditions
     video.onloadedmetadata = () => {
       setCameraStatus('ready', 'Kamera Siap');
+      video.play().catch(err => console.warn("Auto-play failed, waiting for user:", err));
     };
+    
+    video.srcObject = currentStream;
+    
+    // Fallback: If metadata is already loaded (sometimes happens instantly)
+    if (video.readyState >= 2) {
+      setCameraStatus('ready', 'Kamera Siap');
+      video.play().catch(err => console.warn("Auto-play failed, waiting for user:", err));
+    }
   } catch (error) {
     console.error('Webcam Access Error:', error);
-    setCameraStatus('error', 'Gagal Membuka Kamera');
-    alert('Tidak dapat mengakses kamera. Harap pastikan izin kamera diaktifkan di browser Anda.');
+    setCameraStatus('error', 'Kamera Gagal Diakses');
+    alert('Gagal mengakses kamera. Harap pastikan:\n1. Izin kamera telah diberikan di browser.\n2. Kamera tidak sedang digunakan oleh aplikasi lain (seperti Zoom, Teams, dll).');
   }
 }
 
