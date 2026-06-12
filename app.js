@@ -16,6 +16,13 @@ const currentShotNum = document.getElementById('currentShotNum');
 const totalShotsNum = document.getElementById('totalShotsNum');
 
 const startSessionBtn = document.getElementById('startSessionBtn');
+const startSessionBtnDesktop = document.getElementById('startSessionBtnDesktop');
+
+// Helper: sync disabled state for both start buttons
+function setStartBtnsDisabled(disabled) {
+  startSessionBtn.disabled = disabled;
+  if (startSessionBtnDesktop) startSessionBtnDesktop.disabled = disabled;
+}
 const switchCamBtn = document.getElementById('switchCamBtn');
 const toggleSoundBtn = document.getElementById('toggleSoundBtn');
 const soundOnIcon = document.getElementById('soundOnIcon');
@@ -84,6 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
   toggleSoundBtn.addEventListener('click', toggleSoundState);
   toggleMirrorBtn.addEventListener('click', toggleMirrorState);
   startSessionBtn.addEventListener('click', startSession);
+  if (startSessionBtnDesktop) startSessionBtnDesktop.addEventListener('click', startSession);
   
   closeModalBtn.addEventListener('click', hideModal);
   retakeBtn.addEventListener('click', () => {
@@ -161,13 +169,13 @@ function setCameraStatus(type, message) {
   statusDot.className = 'pulse-dot';
   if (type === 'error') {
     statusDot.classList.add('error');
-    startSessionBtn.disabled = true;
+    setStartBtnsDisabled(true);
   } else if (type === 'busy') {
     statusDot.classList.add('busy');
-    startSessionBtn.disabled = true;
+    setStartBtnsDisabled(true);
   } else {
     // ready
-    startSessionBtn.disabled = false;
+    setStartBtnsDisabled(false);
   }
   statusText.textContent = message;
 }
@@ -347,7 +355,7 @@ function isHexColorDark(hex) {
 // --- SESSION CONTROLLER ---
 async function startSession() {
   // Disable UI during session
-  startSessionBtn.disabled = true;
+  setStartBtnsDisabled(true);
   switchCamBtn.disabled = true;
   document.querySelectorAll('.layout-btn, .frame-chip, .filter-chip-btn').forEach(el => el.disabled = true);
   
@@ -383,7 +391,7 @@ async function startSession() {
   showModal();
   
   // Re-enable UI
-  startSessionBtn.disabled = false;
+  setStartBtnsDisabled(false);
   switchCamBtn.disabled = false;
   document.querySelectorAll('.layout-btn, .frame-chip, .filter-chip-btn').forEach(el => el.disabled = false);
   setCameraStatus('ready', 'Kamera Siap');

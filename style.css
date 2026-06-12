@@ -1036,3 +1036,30 @@ video.mirrored {
     gap: 6px;
   }
 }
+
+/* =====================================================
+   Dual Start Button Visibility Logic
+   Mobile  (≤ 768px) : show button below camera, hide below settings
+   Desktop (> 768px) : hide button below camera, show below settings
+   ===================================================== */
+
+/* Default: hide the desktop button on ALL screens,
+   then reveal it only on desktop */
+.action-wrapper--desktop {
+  display: none;
+}
+
+/* Mobile button shown by default (inherits normal block display) */
+.action-wrapper--mobile {
+  display: block;
+}
+
+/* On desktop, flip visibility */
+@media (min-width: 769px) {
+  .action-wrapper--mobile {
+    display: none;
+  }
+  .action-wrapper--desktop {
+    display: block;
+  }
+}
