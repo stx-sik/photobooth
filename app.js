@@ -86,6 +86,10 @@ document.addEventListener('DOMContentLoaded', () => {
   setupGallery();
   startCamera();
   
+  // Responsive: show correct start button based on screen width
+  updateStartButtonVisibility();
+  window.addEventListener('resize', updateStartButtonVisibility);
+
   // Event Listeners
   switchCamBtn.addEventListener('click', toggleCameraFacing);
   toggleSoundBtn.addEventListener('click', toggleSoundState);
@@ -102,6 +106,17 @@ document.addEventListener('DOMContentLoaded', () => {
   downloadBtn.addEventListener('click', downloadStitchedStrip);
   clearGalleryBtn.addEventListener('click', clearGallery);
 });
+
+// --- RESPONSIVE BUTTON TOGGLE ---
+// Uses inline style (highest priority) to guarantee correct visibility
+// regardless of CSS caching issues.
+function updateStartButtonVisibility() {
+  const isDesktop = window.innerWidth >= 769;
+  const mobileWrapper = document.querySelector('.action-wrapper--mobile');
+  const desktopWrapper = document.querySelector('.action-wrapper--desktop');
+  if (mobileWrapper) mobileWrapper.style.display = isDesktop ? 'none' : 'block';
+  if (desktopWrapper) desktopWrapper.style.display = isDesktop ? 'block' : 'none';
+}
 
 // --- CAMERA STAGE MANAGEMENT ---
 async function startCamera() {
