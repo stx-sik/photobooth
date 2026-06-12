@@ -524,8 +524,34 @@ video.mirrored {
 /* Border / Frame chips list */
 .frame-chips-list {
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.frame-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.frame-group-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.frame-chips-row {
+  display: flex;
+  gap: 8px;
   flex-wrap: wrap;
+}
+
+.frame-chips-deco-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
 }
 
 .frame-chip {
@@ -558,7 +584,26 @@ video.mirrored {
   font-size: 0.85rem;
   font-weight: 700;
   color: inherit;
-  filter: invert(1) grayscale(1) contrast(100); /* Automatically contrast with color */
+  filter: invert(1) grayscale(1) contrast(100);
+  z-index: 2;
+}
+
+/* Decorative frame chips — wider, rounded-square */
+.frame-chip--deco {
+  width: 100%;
+  height: 52px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.frame-chip--deco.active::after {
+  filter: none;
+  font-size: 0.7rem;
+  text-shadow: 0 0 4px rgba(0,0,0,0.5);
 }
 
 /* Filter chips grid */

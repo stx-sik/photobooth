@@ -53,6 +53,7 @@ let activeLayout = 'strip-3'; // 'strip-3', 'strip-4', 'grid-2x2'
 let maxShots = 3;
 let selectedFilter = 'none';
 let selectedFrameColor = '#FFFDF8'; // Default paper cream
+let selectedFrameId = 'cream';     // Track frame id for decorative frames
 let capturedPhotos = [];
 let galleryList = [];
 
@@ -68,15 +69,313 @@ const FILTERS = [
   { id: 'high-con', label: 'High Contrast', css: 'contrast(1.3) saturate(1.1)' }
 ];
 
-// Frame Colors Preset
+// Frame Preset — type: 'solid' | 'decorative'
 const FRAMES = [
-  { id: 'cream', color: '#FFFDF8', label: 'Classic Cream' },
-  { id: 'dark', color: '#2B2622', label: 'Midnight Black' },
-  { id: 'rust', color: '#C85A32', label: 'Terracotta' },
-  { id: 'sage', color: '#606C50', label: 'Sage Green' },
-  { id: 'gold', color: '#DEB038', label: 'Mustard Gold' },
-  { id: 'pink', color: '#ECC8C5', label: 'Blush Pink' }
+  // ── Polos (Solid Colors) ──
+  { id: 'cream',   type: 'solid', color: '#FFFDF8', label: 'Krem Klasik' },
+  { id: 'dark',    type: 'solid', color: '#2B2622', label: 'Hitam Malam' },
+  { id: 'rust',    type: 'solid', color: '#C85A32', label: 'Terracotta' },
+  { id: 'sage',    type: 'solid', color: '#606C50', label: 'Hijau Sage' },
+  { id: 'gold',    type: 'solid', color: '#DEB038', label: 'Emas Mustard' },
+  { id: 'pink',    type: 'solid', color: '#ECC8C5', label: 'Pink Blush' },
+  { id: 'navy',    type: 'solid', color: '#1E3A5F', label: 'Biru Navy' },
+  { id: 'lavender',type: 'solid', color: '#C9B8E8', label: 'Lavender' },
+  { id: 'mint',    type: 'solid', color: '#A8D8C8', label: 'Hijau Mint' },
+  { id: 'white',   type: 'solid', color: '#FFFFFF', label: 'Putih Bersih' },
+  // ── Dekoratif ──
+  { id: 'floral',    type: 'decorative', color: '#FFF5F7', label: '🌸 Bunga', draw: drawFloralFrame },
+  { id: 'stars',     type: 'decorative', color: '#1A1A2E', label: '⭐ Bintang', draw: drawStarsFrame },
+  { id: 'hearts',    type: 'decorative', color: '#FFF0F3', label: '❤️ Hati', draw: drawHeartsFrame },
+  { id: 'retro',     type: 'decorative', color: '#FDF6E3', label: '🎞️ Retro', draw: drawRetroFrame },
+  { id: 'confetti',  type: 'decorative', color: '#F8F4FF', label: '🎉 Confetti', draw: drawConfettiFrame },
+  { id: 'vintage',   type: 'decorative', color: '#F5ECD7', label: '📜 Vintage', draw: drawVintageFrame },
+  { id: 'rainbow',   type: 'decorative', color: '#FFFFFF', label: '🌈 Pelangi', draw: drawRainbowFrame },
+  { id: 'night',     type: 'decorative', color: '#0D1B2A', label: '🌙 Malam', draw: drawNightFrame },
 ];
+
+// ─── Decorative Frame Drawers ───────────────────────────────────────
+// Each function receives (ctx, canvasW, canvasH) and draws on top of
+// the already-filled background.
+
+function drawFloralFrame(ctx, w, h) {
+  const flowers = [
+    // corners + midpoints
+    {x:0,   y:0},   {x:w,   y:0},   {x:0,   y:h},   {x:w,   y:h},
+    {x:w/2, y:0},   {x:w/2, y:h},   {x:0,   y:h/2}, {x:w,   y:h/2},
+    {x:w/4, y:0},   {x:3*w/4,y:0},  {x:w/4, y:h},   {x:3*w/4,y:h},
+  ];
+  const petals = 5, r = 18, pr = 9;
+  flowers.forEach(({x, y}) => {
+    for (let i = 0; i < petals; i++) {
+      const angle = (Math.PI * 2 / petals) * i;
+      const px = x + Math.cos(angle) * r;
+      const py = y + Math.sin(angle) * r;
+      ctx.beginPath();
+      ctx.ellipse(px, py, pr, pr * 0.55, angle, 0, Math.PI * 2);
+      ctx.fillStyle = i % 2 === 0 ? '#FF9EB5' : '#FFB7C5';
+      ctx.fill();
+    }
+    ctx.beginPath();
+    ctx.arc(x, y, 7, 0, Math.PI * 2);
+    ctx.fillStyle = '#FFE566';
+    ctx.fill();
+  });
+}
+
+function drawStarsFrame(ctx, w, h) {
+  const positions = [];
+  const seed = 42;
+  for (let i = 0; i < 40; i++) {
+    const t = (seed * (i + 1) * 137.508) % 1;
+    const u = (seed * (i + 1) * 97.3) % 1;
+    const margin = 60;
+    let x, y;
+    if (i % 4 === 0)      { x = t * w; y = u * margin; }
+    else if (i % 4 === 1) { x = t * w; y = h - u * margin; }
+    else if (i % 4 === 2) { x = u * margin; y = t * h; }
+    else                  { x = w - u * margin; y = t * h; }
+    positions.push({x, y, r: 6 + (i % 3) * 4});
+  }
+  const colors = ['#FFE566','#FFC94D','#FFFFFF','#B8D4FF','#FFD6A5'];
+  positions.forEach(({x, y, r}, i) => {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate((i * 30) * Math.PI / 180);
+    drawStar(ctx, 0, 0, r, r * 0.45, 5);
+    ctx.fillStyle = colors[i % colors.length];
+    ctx.fill();
+    ctx.restore();
+  });
+}
+
+function drawStar(ctx, cx, cy, outerR, innerR, points) {
+  ctx.beginPath();
+  for (let i = 0; i < points * 2; i++) {
+    const r = i % 2 === 0 ? outerR : innerR;
+    const angle = (Math.PI / points) * i - Math.PI / 2;
+    i === 0 ? ctx.moveTo(cx + r * Math.cos(angle), cy + r * Math.sin(angle))
+             : ctx.lineTo(cx + r * Math.cos(angle), cy + r * Math.sin(angle));
+  }
+  ctx.closePath();
+}
+
+function drawHeartsFrame(ctx, w, h) {
+  const spots = [];
+  for (let i = 0; i < 30; i++) {
+    const t = ((i * 73.1) % 97) / 97;
+    const u = ((i * 31.7) % 89) / 89;
+    const m = 55;
+    let x, y;
+    if (i % 4 === 0)      { x = t * w; y = u * m; }
+    else if (i % 4 === 1) { x = t * w; y = h - u * m; }
+    else if (i % 4 === 2) { x = u * m; y = t * h; }
+    else                  { x = w - u * m; y = t * h; }
+    spots.push({x, y, s: 8 + (i % 3) * 5});
+  }
+  const colors = ['#FF6B9D','#FF9EB5','#FF4D79','#FFB3C6','#FF1744'];
+  spots.forEach(({x, y, s}, i) => {
+    ctx.save();
+    ctx.translate(x, y);
+    drawHeart(ctx, 0, 0, s);
+    ctx.fillStyle = colors[i % colors.length];
+    ctx.globalAlpha = 0.75;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  });
+}
+
+function drawHeart(ctx, x, y, s) {
+  ctx.beginPath();
+  ctx.moveTo(x, y + s * 0.3);
+  ctx.bezierCurveTo(x, y - s * 0.2, x - s, y - s * 0.2, x - s, y + s * 0.3);
+  ctx.bezierCurveTo(x - s, y + s * 0.75, x, y + s * 1.1, x, y + s * 1.4);
+  ctx.bezierCurveTo(x, y + s * 1.1, x + s, y + s * 0.75, x + s, y + s * 0.3);
+  ctx.bezierCurveTo(x + s, y - s * 0.2, x, y - s * 0.2, x, y + s * 0.3);
+  ctx.closePath();
+}
+
+function drawRetroFrame(ctx, w, h) {
+  const border = 22;
+  // Outer double-line border
+  ctx.strokeStyle = '#8B6914';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(border / 2, border / 2, w - border, h - border);
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(border, border, w - border * 2, h - border * 2);
+  // Corner decorations
+  const corners = [{x:0,y:0},{x:w,y:0},{x:0,y:h},{x:w,y:h}];
+  corners.forEach(({x,y}) => {
+    ctx.save();
+    ctx.translate(x, y);
+    const flip = x > 0 ? -1 : 1;
+    const flopy = y > 0 ? -1 : 1;
+    ctx.scale(flip, flopy);
+    ctx.strokeStyle = '#8B6914';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.arc(0, 0, 20 + i * 12, 0, Math.PI / 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  });
+  // Film sprocket holes along sides
+  const holeR = 6, holeGap = 40;
+  ctx.fillStyle = '#C9A227';
+  for (let y = holeGap; y < h; y += holeGap) {
+    ctx.beginPath(); ctx.arc(10, y, holeR, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(w - 10, y, holeR, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+function drawConfettiFrame(ctx, w, h) {
+  const shapes = ['rect','circle','triangle'];
+  const colors = ['#FF6B6B','#4ECDC4','#FFE66D','#A8E6CF','#FF8B94','#C3A6FF','#FF9A3C'];
+  for (let i = 0; i < 80; i++) {
+    const t  = ((i * 61.8) % 97) / 97;
+    const u  = ((i * 23.5) % 83) / 83;
+    const m  = 65;
+    let x, y;
+    if (i % 4 === 0)      { x = t * w; y = u * m; }
+    else if (i % 4 === 1) { x = t * w; y = h - u * m; }
+    else if (i % 4 === 2) { x = u * m; y = t * h; }
+    else                  { x = w - u * m; y = t * h; }
+    const s = 4 + (i % 4) * 3;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate((i * 47) * Math.PI / 180);
+    ctx.fillStyle = colors[i % colors.length];
+    ctx.globalAlpha = 0.8;
+    const shape = shapes[i % shapes.length];
+    if (shape === 'rect') {
+      ctx.fillRect(-s, -s / 2, s * 2, s);
+    } else if (shape === 'circle') {
+      ctx.beginPath(); ctx.arc(0, 0, s, 0, Math.PI * 2); ctx.fill();
+    } else {
+      ctx.beginPath(); ctx.moveTo(0, -s); ctx.lineTo(s, s); ctx.lineTo(-s, s); ctx.closePath(); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+}
+
+function drawVintageFrame(ctx, w, h) {
+  // Aged paper texture edges
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0,   'rgba(139,100,20,0.25)');
+  grad.addColorStop(0.1, 'rgba(139,100,20,0)');
+  grad.addColorStop(0.9, 'rgba(139,100,20,0)');
+  grad.addColorStop(1,   'rgba(139,100,20,0.25)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+  const gradH = ctx.createLinearGradient(0, 0, w, 0);
+  gradH.addColorStop(0,   'rgba(139,100,20,0.25)');
+  gradH.addColorStop(0.1, 'rgba(139,100,20,0)');
+  gradH.addColorStop(0.9, 'rgba(139,100,20,0)');
+  gradH.addColorStop(1,   'rgba(139,100,20,0.25)');
+  ctx.fillStyle = gradH;
+  ctx.fillRect(0, 0, w, h);
+  // Ornate border
+  ctx.strokeStyle = '#8B6914';
+  ctx.lineWidth = 3;
+  const p = 18;
+  ctx.strokeRect(p, p, w - p * 2, h - p * 2);
+  // Corner flourishes
+  const c2 = [{x:p,y:p},{x:w-p,y:p},{x:p,y:h-p},{x:w-p,y:h-p}];
+  c2.forEach(({x,y}, i) => {
+    const sx = i % 2 === 0 ? 1 : -1;
+    const sy = i < 2 ? 1 : -1;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(sx, sy);
+    ctx.strokeStyle = '#A0882A';
+    ctx.lineWidth = 1.5;
+    // Diamond shape
+    ctx.beginPath();
+    ctx.moveTo(0, 0); ctx.lineTo(16, 0); ctx.lineTo(0, 16); ctx.closePath();
+    ctx.stroke();
+    // Small dot
+    ctx.beginPath(); ctx.arc(20, 20, 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#A0882A'; ctx.fill();
+    ctx.restore();
+  });
+  // Sepia vignette corners
+  [0, w, 0, h].forEach((_, i) => {
+    const corners2 = [{x:0,y:0},{x:w,y:0},{x:0,y:h},{x:w,y:h}];
+    const {x, y} = corners2[i];
+    const vg = ctx.createRadialGradient(x, y, 0, x, y, w * 0.5);
+    vg.addColorStop(0, 'rgba(100,60,10,0.3)');
+    vg.addColorStop(1, 'rgba(100,60,10,0)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, w, h);
+  });
+}
+
+function drawRainbowFrame(ctx, w, h) {
+  const border = 28;
+  const colors = ['#FF0000','#FF7700','#FFDD00','#00CC44','#0099FF','#7700FF'];
+  const stripeW = border / colors.length;
+  // Top
+  colors.forEach((c, i) => {
+    ctx.fillStyle = c; ctx.globalAlpha = 0.85;
+    ctx.fillRect(0, i * stripeW, w, stripeW);
+  });
+  // Bottom
+  colors.forEach((c, i) => {
+    ctx.fillStyle = c; ctx.globalAlpha = 0.85;
+    ctx.fillRect(0, h - border + i * stripeW, w, stripeW);
+  });
+  // Left
+  colors.forEach((c, i) => {
+    ctx.fillStyle = c; ctx.globalAlpha = 0.85;
+    ctx.fillRect(i * stripeW, 0, stripeW, h);
+  });
+  // Right
+  colors.forEach((c, i) => {
+    ctx.fillStyle = c; ctx.globalAlpha = 0.85;
+    ctx.fillRect(w - border + i * stripeW, 0, stripeW, h);
+  });
+  ctx.globalAlpha = 1;
+  // White inner border
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(border + 2, border + 2, w - (border + 2) * 2, h - (border + 2) * 2);
+}
+
+function drawNightFrame(ctx, w, h) {
+  // Starfield
+  for (let i = 0; i < 60; i++) {
+    const t  = ((i * 73.1) % 97) / 97;
+    const u  = ((i * 31.7) % 89) / 89;
+    const m  = 70;
+    let x, y;
+    if (i % 4 === 0)      { x = t * w; y = u * m; }
+    else if (i % 4 === 1) { x = t * w; y = h - u * m; }
+    else if (i % 4 === 2) { x = u * m; y = t * h; }
+    else                  { x = w - u * m; y = t * h; }
+    const r = 0.8 + (i % 3) * 0.8;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,255,255,${0.4 + (i % 5) * 0.12})`;
+    ctx.fill();
+  }
+  // Moon crescent top-right
+  ctx.save();
+  ctx.translate(w - 45, 35);
+  ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI * 2);
+  ctx.fillStyle = '#FFE566'; ctx.fill();
+  ctx.beginPath(); ctx.arc(8, -4, 16, 0, Math.PI * 2);
+  ctx.fillStyle = '#0D1B2A'; ctx.fill();
+  ctx.restore();
+  // Gradient border glow
+  const glow = ctx.createLinearGradient(0, 0, w, h);
+  glow.addColorStop(0, 'rgba(100,120,255,0.15)');
+  glow.addColorStop(1, 'rgba(200,100,255,0.15)');
+  ctx.strokeStyle = glow;
+  ctx.lineWidth = 6;
+  ctx.strokeRect(3, 3, w - 6, h - 6);
+}
 
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -323,25 +622,73 @@ function initializeFilters() {
 
 function initializeFrames() {
   frameChipsList.innerHTML = '';
+
+  // Group: Polos
+  const solidGroup = document.createElement('div');
+  solidGroup.className = 'frame-group';
+  const solidLabel = document.createElement('span');
+  solidLabel.className = 'frame-group-label';
+  solidLabel.textContent = 'Polos';
+  solidGroup.appendChild(solidLabel);
+  const solidRow = document.createElement('div');
+  solidRow.className = 'frame-chips-row';
+  solidGroup.appendChild(solidRow);
+  frameChipsList.appendChild(solidGroup);
+
+  // Group: Dekoratif
+  const decoGroup = document.createElement('div');
+  decoGroup.className = 'frame-group';
+  const decoLabel = document.createElement('span');
+  decoLabel.className = 'frame-group-label';
+  decoLabel.textContent = 'Dekoratif';
+  decoGroup.appendChild(decoLabel);
+  const decoRow = document.createElement('div');
+  decoRow.className = 'frame-chips-row frame-chips-deco-row';
+  decoGroup.appendChild(decoRow);
+  frameChipsList.appendChild(decoGroup);
+
   FRAMES.forEach(fr => {
     const chip = document.createElement('button');
-    chip.className = `frame-chip ${fr.color === selectedFrameColor ? 'active' : ''}`;
-    chip.style.backgroundColor = fr.color;
     chip.title = fr.label;
-    chip.dataset.color = fr.color;
-    
-    // Auto invert font icon color if frame is dark/light
-    const isDarkColor = isHexColorDark(fr.color);
-    chip.style.color = isDarkColor ? '#fffdfa' : '#2b2622';
-    
+    chip.dataset.id = fr.id;
+
+    if (fr.type === 'solid') {
+      chip.className = `frame-chip ${fr.id === selectedFrameId ? 'active' : ''}`;
+      chip.style.backgroundColor = fr.color;
+      const isDarkColor = isHexColorDark(fr.color);
+      chip.style.color = isDarkColor ? '#fffdfa' : '#2b2622';
+      solidRow.appendChild(chip);
+    } else {
+      chip.className = `frame-chip frame-chip--deco ${fr.id === selectedFrameId ? 'active' : ''}`;
+      chip.style.backgroundColor = fr.color;
+      chip.textContent = fr.label.split(' ')[0]; // show emoji
+      const isDarkColor = isHexColorDark(fr.color);
+      chip.style.color = isDarkColor ? '#fffdfa' : '#2b2622';
+      // Mini canvas preview inside chip
+      const miniCanvas = document.createElement('canvas');
+      miniCanvas.width = 44;
+      miniCanvas.height = 44;
+      miniCanvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border-radius:inherit;pointer-events:none;';
+      chip.style.position = 'relative';
+      chip.style.overflow = 'hidden';
+      chip.style.fontSize = '18px';
+      // Draw preview after appending
+      setTimeout(() => {
+        const mctx = miniCanvas.getContext('2d');
+        mctx.fillStyle = fr.color;
+        mctx.fillRect(0, 0, 44, 44);
+        fr.draw(mctx, 44, 44);
+        chip.appendChild(miniCanvas);
+      }, 0);
+      decoRow.appendChild(chip);
+    }
+
     chip.addEventListener('click', () => {
       selectedFrameColor = fr.color;
-      // Update UI active state
+      selectedFrameId = fr.id;
       document.querySelectorAll('.frame-chip').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
     });
-    
-    frameChipsList.appendChild(chip);
   });
 }
 
@@ -524,6 +871,11 @@ async function buildStitchedStrip() {
   // 1. Fill Frame Background
   ctx.fillStyle = selectedFrameColor;
   ctx.fillRect(0, 0, canvasW, canvasH);
+  // If decorative frame, draw the overlay BEFORE photos
+  const activeFrame = FRAMES.find(f => f.id === selectedFrameId);
+  if (activeFrame && activeFrame.type === 'decorative' && activeFrame.draw) {
+    activeFrame.draw(ctx, canvasW, canvasH);
+  }
   
   // 2. Draw Captured Images (with filter applied on top)
   const filterCss = FILTERS.find(f => f.id === selectedFilter).css;
