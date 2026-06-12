@@ -1,0 +1,623 @@
+/* app.js - InstaBooth Interactive Controller */
+
+// UI Elements
+const video = document.getElementById('video');
+const liveCanvas = document.getElementById('liveCanvas');
+const captureCanvas = document.getElementById('captureCanvas');
+const stripCanvas = document.getElementById('stripCanvas');
+
+const countdownOverlay = document.getElementById('countdownOverlay');
+const countdownText = document.getElementById('countdownText');
+const flashOverlay = document.getElementById('flashOverlay');
+const statusDot = document.querySelector('.pulse-dot');
+const statusText = document.getElementById('statusText');
+const shotCounter = document.getElementById('shotCounter');
+const currentShotNum = document.getElementById('currentShotNum');
+const totalShotsNum = document.getElementById('totalShotsNum');
+
+const startSessionBtn = document.getElementById('startSessionBtn');
+const switchCamBtn = document.getElementById('switchCamBtn');
+const toggleSoundBtn = document.getElementById('toggleSoundBtn');
+const soundOnIcon = document.getElementById('soundOnIcon');
+const soundOffIcon = document.getElementById('soundOffIcon');
+const soundBtnText = document.getElementById('soundBtnText');
+
+const frameChipsList = document.getElementById('frameChipsList');
+const filterChipsGrid = document.getElementById('filterChipsGrid');
+
+const resultModal = document.getElementById('resultModal');
+const closeModalBtn = document.getElementById('closeModalBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const retakeBtn = document.getElementById('retakeBtn');
+
+const galleryGrid = document.getElementById('galleryGrid');
+const galleryEmptyState = document.getElementById('galleryEmptyState');
+const clearGalleryBtn = document.getElementById('clearGalleryBtn');
+
+// App State
+let currentStream = null;
+let useFrontCamera = true;
+let isSoundEnabled = true;
+let activeLayout = 'strip-3'; // 'strip-3', 'strip-4', 'grid-2x2'
+let maxShots = 3;
+let selectedFilter = 'none';
+let selectedFrameColor = '#FFFDF8'; // Default paper cream
+let capturedPhotos = [];
+let galleryList = [];
+
+// Filters Preset
+const FILTERS = [
+  { id: 'none', label: 'Original', css: 'none' },
+  { id: 'vintage', label: 'Vintage Film', css: 'sepia(0.35) saturate(1.3) contrast(0.95) brightness(1.05)' },
+  { id: 'mono', label: 'Dramatic Noir', css: 'grayscale(1) contrast(1.25) brightness(0.95)' },
+  { id: 'sepia', label: 'Retro Sepia', css: 'sepia(0.8) contrast(1.05) saturate(0.9)' },
+  { id: 'warm', label: 'Warm Chrome', css: 'saturate(1.25) hue-rotate(-10deg) brightness(1.02)' },
+  { id: 'cool', label: 'Cool Teal', css: 'saturate(1.15) hue-rotate(15deg) brightness(1.04)' },
+  { id: 'faded', label: 'Faded Velvet', css: 'contrast(0.85) brightness(1.08) saturate(0.9)' },
+  { id: 'high-con', label: 'High Contrast', css: 'contrast(1.3) saturate(1.1)' }
+];
+
+// Frame Colors Preset
+const FRAMES = [
+  { id: 'cream', color: '#FFFDF8', label: 'Classic Cream' },
+  { id: 'dark', color: '#2B2622', label: 'Midnight Black' },
+  { id: 'rust', color: '#C85A32', label: 'Terracotta' },
+  { id: 'sage', color: '#606C50', label: 'Sage Green' },
+  { id: 'gold', color: '#DEB038', label: 'Mustard Gold' },
+  { id: 'pink', color: '#ECC8C5', label: 'Blush Pink' }
+];
+
+// --- INITIALIZATION ---
+document.addEventListener('DOMContentLoaded', () => {
+  initializeFilters();
+  initializeFrames();
+  initializeLayouts();
+  setupGallery();
+  startCamera();
+  
+  // Event Listeners
+  switchCamBtn.addEventListener('click', toggleCameraFacing);
+  toggleSoundBtn.addEventListener('click', toggleSoundState);
+  startSessionBtn.addEventListener('click', startSession);
+  
+  closeModalBtn.addEventListener('click', hideModal);
+  retakeBtn.addEventListener('click', () => {
+    hideModal();
+    startSession(); // Auto restart session on retake
+  });
+  
+  downloadBtn.addEventListener('click', downloadStitchedStrip);
+  clearGalleryBtn.addEventListener('click', clearGallery);
+});
+
+// --- CAMERA STAGE MANAGEMENT ---
+async function startCamera() {
+  setCameraStatus('busy', 'Menghubungkan...');
+  
+  if (currentStream) {
+    currentStream.getTracks().forEach(track => track.stop());
+  }
+
+  const constraints = {
+    video: {
+      facingMode: useFrontCamera ? 'user' : 'environment',
+      width: { ideal: 1280 },
+      height: { ideal: 960 },
+      aspectRatio: 4/3
+    },
+    audio: false
+  };
+
+  try {
+    currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+    video.srcObject = currentStream;
+    
+    // Wait for video metadata to load to ensure size matches
+    video.onloadedmetadata = () => {
+      setCameraStatus('ready', 'Kamera Siap');
+    };
+  } catch (error) {
+    console.error('Webcam Access Error:', error);
+    setCameraStatus('error', 'Gagal Membuka Kamera');
+    alert('Tidak dapat mengakses kamera. Harap pastikan izin kamera diaktifkan di browser Anda.');
+  }
+}
+
+function setCameraStatus(type, message) {
+  statusDot.className = 'pulse-dot';
+  if (type === 'error') {
+    statusDot.classList.add('error');
+    startSessionBtn.disabled = true;
+  } else if (type === 'busy') {
+    statusDot.classList.add('busy');
+    startSessionBtn.disabled = true;
+  } else {
+    // ready
+    startSessionBtn.disabled = false;
+  }
+  statusText.textContent = message;
+}
+
+function toggleCameraFacing() {
+  useFrontCamera = !useFrontCamera;
+  startCamera();
+}
+
+// --- SOUND EFFECTS SYNTHESIZER (Web Audio API) ---
+function playBeepSound() {
+  if (!isSoundEnabled) return;
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    
+    osc.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, audioCtx.currentTime); // Pitch (A5 note)
+    
+    gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+    
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.15);
+  } catch (e) {
+    console.warn('Audio Context failed to start:', e);
+  }
+}
+
+function playShutterSound() {
+  if (!isSoundEnabled) return;
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    // 1. Shutter White Noise Burst
+    const bufferSize = audioCtx.sampleRate * 0.15; // 0.15 seconds
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    
+    const noiseNode = audioCtx.createBufferSource();
+    noiseNode.buffer = buffer;
+    
+    const filterNode = audioCtx.createBiquadFilter();
+    filterNode.type = 'bandpass';
+    filterNode.frequency.setValueAtTime(1000, audioCtx.currentTime);
+    
+    const gainNode = audioCtx.createGain();
+    gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+    
+    noiseNode.connect(filterNode);
+    filterNode.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    
+    // 2. Camera Mirror Click Tone
+    const osc = audioCtx.createOscillator();
+    const oscGain = audioCtx.createGain();
+    
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(120, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 0.08);
+    
+    oscGain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+    oscGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+    
+    osc.connect(oscGain);
+    oscGain.connect(audioCtx.destination);
+    
+    noiseNode.start();
+    osc.start();
+    
+    noiseNode.stop(audioCtx.currentTime + 0.15);
+    osc.stop(audioCtx.currentTime + 0.08);
+  } catch (e) {
+    console.warn('Audio Context failed to start:', e);
+  }
+}
+
+function toggleSoundState() {
+  isSoundEnabled = !isSoundEnabled;
+  if (isSoundEnabled) {
+    soundOnIcon.classList.remove('hidden');
+    soundOffIcon.classList.add('hidden');
+    soundBtnText.textContent = 'Suara Aktif';
+    playBeepSound();
+  } else {
+    soundOnIcon.classList.add('hidden');
+    soundOffIcon.classList.remove('hidden');
+    soundBtnText.textContent = 'Suara Mati';
+  }
+}
+
+// --- OPTION CHIPS AND CONFIGURATION ---
+function initializeFilters() {
+  filterChipsGrid.innerHTML = '';
+  FILTERS.forEach(f => {
+    const btn = document.createElement('button');
+    btn.className = `filter-chip-btn ${f.id === selectedFilter ? 'active' : ''}`;
+    btn.textContent = f.label;
+    btn.dataset.id = f.id;
+    
+    btn.addEventListener('click', () => {
+      selectedFilter = f.id;
+      // Apply CSS filter to preview
+      video.style.filter = f.css;
+      
+      // Update UI active state
+      document.querySelectorAll('.filter-chip-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+    
+    filterChipsGrid.appendChild(btn);
+  });
+}
+
+function initializeFrames() {
+  frameChipsList.innerHTML = '';
+  FRAMES.forEach(fr => {
+    const chip = document.createElement('button');
+    chip.className = `frame-chip ${fr.color === selectedFrameColor ? 'active' : ''}`;
+    chip.style.backgroundColor = fr.color;
+    chip.title = fr.label;
+    chip.dataset.color = fr.color;
+    
+    // Auto invert font icon color if frame is dark/light
+    const isDarkColor = isHexColorDark(fr.color);
+    chip.style.color = isDarkColor ? '#fffdfa' : '#2b2622';
+    
+    chip.addEventListener('click', () => {
+      selectedFrameColor = fr.color;
+      // Update UI active state
+      document.querySelectorAll('.frame-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+    });
+    
+    frameChipsList.appendChild(chip);
+  });
+}
+
+function initializeLayouts() {
+  document.querySelectorAll('.layout-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.layout-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      
+      activeLayout = btn.dataset.layout;
+      maxShots = parseInt(btn.dataset.shots);
+    });
+  });
+}
+
+// Utility to check if hex color is dark
+function isHexColorDark(hex) {
+  const c = hex.replace('#', '');
+  const r = parseInt(c.substring(0, 2), 16);
+  const g = parseInt(c.substring(2, 4), 16);
+  const b = parseInt(c.substring(4, 6), 16);
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+  return brightness < 128;
+}
+
+// --- SESSION CONTROLLER ---
+async function startSession() {
+  // Disable UI during session
+  startSessionBtn.disabled = true;
+  switchCamBtn.disabled = true;
+  document.querySelectorAll('.layout-btn, .frame-chip, .filter-chip-btn').forEach(el => el.disabled = true);
+  
+  capturedPhotos = [];
+  shotCounter.style.display = 'block';
+  totalShotsNum.textContent = maxShots;
+  
+  setCameraStatus('busy', 'Mengambil Foto...');
+
+  for (let i = 0; i < maxShots; i++) {
+    currentShotNum.textContent = i + 1;
+    
+    // 1. Run 3 seconds countdown
+    await runShotCountdown(3);
+    
+    // 2. Play shutter sound and capture frame
+    playShutterSound();
+    triggerFlashAnimation();
+    
+    const photoDataUrl = captureVideoFrame();
+    capturedPhotos.push(photoDataUrl);
+    
+    // 3. Brief delay between shots
+    await wait(600);
+  }
+
+  // Session completed
+  shotCounter.style.display = 'none';
+  setCameraStatus('ready', 'Proses Foto...');
+  
+  // Build and display stitched strip
+  await buildStitchedStrip();
+  showModal();
+  
+  // Re-enable UI
+  startSessionBtn.disabled = false;
+  switchCamBtn.disabled = false;
+  document.querySelectorAll('.layout-btn, .frame-chip, .filter-chip-btn').forEach(el => el.disabled = false);
+  setCameraStatus('ready', 'Kamera Siap');
+}
+
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function runShotCountdown(seconds) {
+  return new Promise(async (resolve) => {
+    countdownOverlay.classList.add('active');
+    
+    for (let c = seconds; c > 0; c--) {
+      countdownText.textContent = c;
+      playBeepSound();
+      
+      // Animate countdown text scale
+      countdownText.style.animation = 'none';
+      void countdownText.offsetWidth; // Trigger reflow
+      countdownText.style.animation = 'countdownPulse 1s ease-in-out infinite';
+      
+      await wait(1000);
+    }
+    
+    countdownOverlay.classList.remove('active');
+    resolve();
+  });
+}
+
+function triggerFlashAnimation() {
+  flashOverlay.classList.remove('trigger');
+  void flashOverlay.offsetWidth; // Trigger reflow
+  flashOverlay.classList.add('trigger');
+}
+
+function captureVideoFrame() {
+  const videoW = video.videoWidth || 640;
+  const videoH = video.videoHeight || 480;
+  
+  captureCanvas.width = videoW;
+  captureCanvas.height = videoH;
+  
+  const ctx = captureCanvas.getContext('2d');
+  
+  ctx.save();
+  
+  // 1. Mirroring horizontally (mirror the canvas drawing)
+  ctx.translate(videoW, 0);
+  ctx.scale(-1, 1);
+  
+  // 2. Draw Image
+  ctx.drawImage(video, 0, 0, videoW, videoH);
+  ctx.restore();
+  
+  // 3. Return as base64 jpeg
+  return captureCanvas.toDataURL('image/jpeg', 0.95);
+}
+
+// --- CANVAS STITCHING ENGINE ---
+function loadImage(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.src = src;
+  });
+}
+
+async function buildStitchedStrip() {
+  const photoWidth = 540;
+  const photoHeight = Math.round(photoWidth * 3 / 4); // 405px
+  const padding = 28;
+  const gap = 20;
+  const footerHeight = 85;
+  
+  let canvasW, canvasH;
+  
+  // Determine layout dimensions
+  if (activeLayout === 'grid-2x2') {
+    canvasW = photoWidth * 2 + padding * 2 + gap;
+    canvasH = photoHeight * 2 + padding * 2 + gap + footerHeight;
+  } else {
+    // strip-3 or strip-4
+    canvasW = photoWidth + padding * 2;
+    canvasH = (photoHeight * maxShots) + padding * 2 + (gap * (maxShots - 1)) + footerHeight;
+  }
+  
+  stripCanvas.width = canvasW;
+  stripCanvas.height = canvasH;
+  
+  const ctx = stripCanvas.getContext('2d');
+  
+  // 1. Fill Frame Background
+  ctx.fillStyle = selectedFrameColor;
+  ctx.fillRect(0, 0, canvasW, canvasH);
+  
+  // 2. Draw Captured Images (with filter applied on top)
+  const filterCss = FILTERS.find(f => f.id === selectedFilter).css;
+  ctx.filter = filterCss;
+  
+  for (let i = 0; i < capturedPhotos.length; i++) {
+    const img = await loadImage(capturedPhotos[i]);
+    
+    let x, y;
+    
+    if (activeLayout === 'grid-2x2') {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      x = padding + col * (photoWidth + gap);
+      y = padding + row * (photoHeight + gap);
+    } else {
+      // vertical strip
+      x = padding;
+      y = padding + i * (photoHeight + gap);
+    }
+    
+    ctx.drawImage(img, x, y, photoWidth, photoHeight);
+  }
+  
+  // Reset filter for text/branding
+  ctx.filter = 'none';
+  
+  // 3. Draw Branding & Date Footer
+  const isDarkFrame = isHexColorDark(selectedFrameColor);
+  const textColor = isDarkFrame ? '#FFFDF8' : '#2B2622';
+  const subColor = isDarkFrame ? 'rgba(255, 253, 250, 0.7)' : 'rgba(43, 38, 34, 0.7)';
+  
+  ctx.fillStyle = textColor;
+  ctx.textAlign = 'center';
+  
+  // Title (Playfair Serif mood)
+  ctx.font = '700 24px Georgia, serif';
+  ctx.fillText('InstaBooth Studio', canvasW / 2, canvasH - footerHeight + 34);
+  
+  // Date & Format (Sans Mood)
+  const today = new Date();
+  const dateStr = today.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  const formatText = `—  ${activeLayout.toUpperCase().replace('-', ' ')}  —  ${dateStr}`;
+  
+  ctx.fillStyle = subColor;
+  ctx.font = '500 13px "Outfit", sans-serif';
+  ctx.fillText(formatText, canvasW / 2, canvasH - footerHeight + 58);
+}
+
+// --- RESULT DIALOG & SHARING ---
+function showModal() {
+  resultModal.classList.add('show');
+}
+
+function hideModal() {
+  resultModal.classList.remove('show');
+  
+  // Save current strip into history automatically
+  saveStripToGallery();
+}
+
+function downloadStitchedStrip() {
+  const formatName = activeLayout === 'grid-2x2' ? 'grid' : 'strip';
+  const filename = `instabooth-${formatName}-${Date.now()}.jpg`;
+  
+  const link = document.createElement('a');
+  link.download = filename;
+  link.href = stripCanvas.toDataURL('image/jpeg', 0.95);
+  link.click();
+}
+
+// --- LOCAL GALLERY MANAGEMENT ---
+function setupGallery() {
+  const stored = localStorage.getItem('instabooth_gallery');
+  if (stored) {
+    try {
+      galleryList = JSON.parse(stored);
+    } catch (e) {
+      galleryList = [];
+    }
+  }
+  renderGallery();
+}
+
+function saveStripToGallery() {
+  const imgData = stripCanvas.toDataURL('image/jpeg', 0.85); // High compression to save LocalStorage quota
+  const today = new Date();
+  const dateStr = today.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+  
+  const item = {
+    id: 'photo_' + Date.now(),
+    src: imgData,
+    date: dateStr,
+    layout: activeLayout.replace('-', ' ')
+  };
+  
+  // Add to start of array
+  galleryList.unshift(item);
+  
+  // Keep only last 10 photos to prevent LocalStorage quota overflow (approx 5-10MB limit)
+  if (galleryList.length > 8) {
+    galleryList.pop();
+  }
+  
+  localStorage.setItem('instabooth_gallery', JSON.stringify(galleryList));
+  renderGallery();
+}
+
+function renderGallery() {
+  // Clear grid except empty state
+  const items = galleryGrid.querySelectorAll('.gallery-item');
+  items.forEach(el => el.remove());
+  
+  if (galleryList.length === 0) {
+    galleryEmptyState.style.display = 'flex';
+    clearGalleryBtn.style.display = 'none';
+    return;
+  }
+  
+  galleryEmptyState.style.display = 'none';
+  clearGalleryBtn.style.display = 'inline-flex';
+  
+  galleryList.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'gallery-item';
+    
+    card.innerHTML = `
+      <img src="${item.src}" alt="InstaBooth Strip">
+      <div class="gallery-item-footer">
+        <span>${item.layout.toUpperCase()}</span>
+        <span>${item.date}</span>
+      </div>
+      <div class="gallery-item-actions">
+        <button class="btn btn-download-item" data-id="${item.id}">Unduh</button>
+        <button class="btn btn-delete btn-delete-item" data-id="${item.id}">Hapus</button>
+      </div>
+    `;
+    
+    // Add event listeners to overlay actions
+    card.querySelector('.btn-download-item').addEventListener('click', (e) => {
+      e.stopPropagation();
+      downloadGalleryItem(item.src, item.layout);
+    });
+    
+    card.querySelector('.btn-delete-item').addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteGalleryItem(item.id);
+    });
+    
+    // Clicking card opens full size in a new tab
+    card.addEventListener('click', () => {
+      const newTab = window.open();
+      newTab.document.write(`<img src="${item.src}" style="max-width:100%; height:auto; display:block; margin:20px auto; box-shadow:0 8px 30px rgba(0,0,0,0.3); border-radius:4px;">`);
+      newTab.document.title = "InstaBooth Full Preview";
+    });
+
+    galleryGrid.appendChild(card);
+  });
+}
+
+function downloadGalleryItem(src, layout) {
+  const filename = `instabooth-${layout.replace(' ', '-')}-${Date.now()}.jpg`;
+  const link = document.createElement('a');
+  link.download = filename;
+  link.href = src;
+  link.click();
+}
+
+function deleteGalleryItem(id) {
+  if (confirm('Apakah Anda yakin ingin menghapus foto strip ini?')) {
+    galleryList = galleryList.filter(item => item.id !== id);
+    localStorage.setItem('instabooth_gallery', JSON.stringify(galleryList));
+    renderGallery();
+  }
+}
+
+function clearGallery() {
+  if (confirm('Apakah Anda yakin ingin menghapus semua riwayat foto strip Anda?')) {
+    galleryList = [];
+    localStorage.removeItem('instabooth_gallery');
+    renderGallery();
+  }
+}

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InstaBooth — Studio Foto Strip Klasik</title>
+  <meta name="description" content="Aplikasi Fotobooth web premium dengan filter vintage, bingkai kustom, dan unduhan strip foto instan.">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo-area">
+        <span class="badge">Edisi Terbatas</span>
+        <h1>Insta<span>Booth</span></h1>
+        <p class="tagline">Sentuhan Klasik Studio Foto dalam Genggamanmu</p>
+      </div>
+    </header>
+
+    <!-- Main Workspace Grid -->
+    <main class="app-workspace">
+      
+      <!-- Left Column: Camera Stage & Live Preview -->
+      <section class="camera-section">
+        <div class="card glass stage-card">
+          <div class="stage-wrapper" id="stageWrapper">
+            <!-- Video Preview -->
+            <video id="video" autoplay playsinline muted></video>
+            
+            <!-- Canvas preview for testing mirror/filters on camera -->
+            <canvas id="liveCanvas" class="hidden"></canvas>
+
+            <!-- Overlays -->
+            <div class="countdown-overlay" id="countdownOverlay">
+              <span id="countdownText">3</span>
+            </div>
+            
+            <div class="flash-overlay" id="flashOverlay"></div>
+            
+            <div class="status-indicator" id="statusIndicator">
+              <span class="pulse-dot"></span>
+              <span id="statusText">Kamera Siap</span>
+            </div>
+
+            <div class="shot-counter" id="shotCounter">
+              FOTO <span id="currentShotNum">1</span> / <span id="totalShotsNum">3</span>
+            </div>
+          </div>
+
+          <!-- Quick Actions under Video -->
+          <div class="stage-actions">
+            <button class="btn btn-secondary btn-icon" id="switchCamBtn" title="Ganti Kamera">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+              <span>Ganti Kamera</span>
+            </button>
+            <button class="btn btn-secondary btn-icon" id="toggleSoundBtn" title="Aktifkan/Matikan Suara">
+              <svg id="soundOnIcon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+              <svg id="soundOffIcon" class="hidden" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>
+              <span id="soundBtnText">Suara Aktif</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Controls & Styling Options -->
+      <section class="controls-section">
+        
+        <!-- Tab Controls or Section Controls -->
+        <div class="card glass settings-card">
+          <h2 class="section-title">Konfigurasi Booth</h2>
+          
+          <!-- Mode Selection -->
+          <div class="setting-group">
+            <label class="setting-label">Format Layout</label>
+            <div class="layout-toggle-grid">
+              <button class="layout-btn active" data-shots="3" data-layout="strip-3">
+                <span class="layout-preview-icon strip-3-icon"></span>
+                <span class="layout-name">Strip 3 Foto</span>
+              </button>
+              <button class="layout-btn" data-shots="4" data-layout="strip-4">
+                <span class="layout-preview-icon strip-4-icon"></span>
+                <span class="layout-name">Strip 4 Foto</span>
+              </button>
+              <button class="layout-btn" data-shots="4" data-layout="grid-2x2">
+                <span class="layout-preview-icon grid-2x2-icon"></span>
+                <span class="layout-name">Kotak 2x2</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Color Border / Frames -->
+          <div class="setting-group">
+            <label class="setting-label">Warna Bingkai</label>
+            <div class="frame-chips-list" id="frameChipsList">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- Visual Filters -->
+          <div class="setting-group">
+            <label class="setting-label">Filter Kreatif</label>
+            <div class="filter-chips-grid" id="filterChipsGrid">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- Master Action Button -->
+          <div class="action-wrapper">
+            <button class="btn btn-primary btn-large btn-glow" id="startSessionBtn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+              <span>Mulai Jepret</span>
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Modal Result Layer / Popup (stunning full-screen overlay for captured photo) -->
+    <div class="modal-overlay" id="resultModal">
+      <div class="modal-container glass">
+        <button class="modal-close-btn" id="closeModalBtn" aria-label="Tutup Halaman Hasil">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        
+        <div class="modal-content">
+          <div class="canvas-preview-area">
+            <canvas id="stripCanvas"></canvas>
+          </div>
+          
+          <div class="result-actions-panel">
+            <h3 class="result-title">Sesi Selesai! ✨</h3>
+            <p class="result-desc">Unduh fotomu atau simpan ke galeri riwayat sesi di bawah.</p>
+            
+            <div class="btn-group-vertical">
+              <button class="btn btn-primary btn-icon" id="downloadBtn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span>Unduh Gambar</span>
+              </button>
+              <button class="btn btn-secondary btn-icon" id="retakeBtn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                <span>Ambil Foto Ulang</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gallery Section (Session History) -->
+    <section class="gallery-section">
+      <div class="gallery-header">
+        <h2>Riwayat Strip Fotomu <span>(Galeri Lokal)</span></h2>
+        <button class="btn btn-text btn-icon" id="clearGalleryBtn" style="display:none;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+          <span>Hapus Semua</span>
+        </button>
+      </div>
+      <div class="gallery-grid" id="galleryGrid">
+        <!-- Dynamically populated or empty state -->
+        <div class="gallery-empty-state" id="galleryEmptyState">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <p>Belum ada foto yang diambil. Mulailah jepret untuk membuat kenangan pertamamu!</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer / Credit -->
+    <footer class="app-footer-credit">
+      <p>&copy; 2026 InstaBooth Studio. Dibuat dengan ❤️. Sambungkan ke <a href="https://github.com" target="_blank" rel="noopener">GitHub</a> untuk di-host secara gratis.</p>
+    </footer>
+  </div>
+
+  <!-- Hidden elements for canvas capture -->
+  <canvas id="captureCanvas" class="hidden"></canvas>
+
+  <script src="app.js"></script>
+</body>
+</html>
