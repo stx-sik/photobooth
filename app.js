@@ -496,6 +496,9 @@ function setCameraStatus(type, message) {
 
 function toggleCameraFacing() {
   useFrontCamera = !useFrontCamera;
+  // Auto-set mirror: front camera = ON (selfie), rear camera = OFF (natural)
+  isMirrored = useFrontCamera;
+  applyMirrorState();
   startCamera();
 }
 
@@ -592,6 +595,11 @@ function toggleSoundState() {
 
 function toggleMirrorState() {
   isMirrored = !isMirrored;
+  applyMirrorState();
+}
+
+// Apply current isMirrored state to video, canvas, and button label
+function applyMirrorState() {
   video.classList.toggle('mirrored', isMirrored);
   liveCanvas.classList.toggle('mirrored', isMirrored);
   mirrorBtnText.textContent = isMirrored ? 'Mirror: On' : 'Mirror: Off';
